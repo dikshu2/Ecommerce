@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const productSchema = new mongoose.Schema({   
+const userSchema = new mongoose.Schema({   
      name:{
         type: String,
         required: [true, "Please enter your name"],
@@ -10,7 +12,8 @@ const productSchema = new mongoose.Schema({
     email:{
         type: String,
         required: [true, "Please enter your email"],
-        validator:[validator.email, "Please enter a valid email"]
+        validator:[validator.email, "Please enter a valid email"],
+        unique: true,
     },
     profile_pic:[
         {
@@ -37,4 +40,22 @@ const productSchema = new mongoose.Schema({
    },
 
 });
-module.exports = mongoose.model("Product",productSchema)
+
+userSchema.pre("save",async function(next){
+    if(!this.isModified("password")){
+        next();
+    }
+this.password= await bcrypt.hash(this.password,10);
+});
+
+userSchema.methods.comparePassword = async function(enteredPassword){
+return await bcrypt.compare(enteredPassword,this.password);
+};
+
+userSchema.methods.getToken=  function(){
+const token = jwt.sign({id:this._id}, "secretKey",{
+    expiresIn:"1d",
+});
+return token;
+};
+module.exports = mongoose.model("User",userSchema)
